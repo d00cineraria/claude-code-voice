@@ -111,6 +111,7 @@ try {
 const toSpeakable = (text) =>
   text
     .replace(/```[\s\S]*?```/g, '。コード。') // コードブロックは読まない
+    .replace(/^\s*\|.*$/gm, '') // 表の行は読まない(記号を抜くと単語の羅列になり意味不明のため)
     .replace(/`([^`]*)`/g, '$1') // インラインコードは中身(ファイル名など)を残して記号だけ除去
     .replace(/!\[[^\]]*\]\([^)]*\)/g, '')
     .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1') // リンクは表示文字だけ
@@ -199,6 +200,23 @@ if (event.hook_event_name === 'Stop') {
 }
 
 if (!speech) process.exit(0);
+
+// 何をいつ読んだかの記録(不具合調査用。直近200行だけ保持)
+try {
+  const logFile = join(tmpdir(), 'claude-code-voice.log');
+  let lines = [];
+  try {
+    lines = readFileSync(logFile, 'utf8').split('\n').filter(Boolean);
+  } catch {
+    /* 初回 */
+  }
+  lines.push(
+    `${new Date().toISOString()} ${event.hook_event_name} ${event.session_id ?? '-'} :: ${speech.slice(0, 120)}`,
+  );
+  writeFileSync(logFile, `${lines.slice(-200).join('\n')}\n`);
+} catch {
+  /* ログ失敗は無視 */
+}
 
 // ---- 読み上げ ------------------------------------------------------------------
 

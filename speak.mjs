@@ -137,7 +137,7 @@ const firstSentences = (text, max) => {
 };
 
 // transcript(JSONL)から最後のアシスタント発話テキストを取り出す
-const lastAssistantText = (transcriptPath) => {
+const extractLastText = (transcriptPath) => {
   const lines = readFileSync(transcriptPath, 'utf8').split('\n');
   let last = '';
   for (const line of lines) {
@@ -155,6 +155,23 @@ const lastAssistantText = (transcriptPath) => {
     if (texts.length > 0) last = texts[texts.length - 1].text;
   }
   return last;
+};
+
+const sleepMs = (ms) => {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+};
+
+// Stopイベントの発火はログへの最終メッセージ書き込みより先に来ることがある(レース)。
+// そのまま読むと途中の進捗コメントを最終報告と取り違えるため、内容が安定するまで待つ
+const lastAssistantText = (transcriptPath) => {
+  let prev = extractLastText(transcriptPath);
+  for (let i = 0; i < 5; i++) {
+    sleepMs(250);
+    const cur = extractLastText(transcriptPath);
+    if (cur === prev) return cur;
+    prev = cur;
+  }
+  return prev;
 };
 
 let speech = '';

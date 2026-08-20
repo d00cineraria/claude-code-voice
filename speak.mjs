@@ -116,6 +116,8 @@ const toSpeakable = (text) =>
     .replace(/!\[[^\]]*\]\([^)]*\)/g, '')
     .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1') // リンクは表示文字だけ
     .replace(/https?:\/\/\S+/g, '')
+    .replace(/\b[0-9a-f]{7,40}\b/g, '') // コミットハッシュ等の16進IDは読まない
+    .replace(/[((]\s*[、,]*\s*[))]/g, '') // 中身が消えて空になったかっこを除去
     .replace(/^[#>\-*|]+\s*/gm, '') // 見出し・引用・箇条書き・表の記号
     .replace(/[*~#|]/g, '') // 強調・見出し記号(_はファイル名に使われるため残す)
     .replace(/\s+/g, ' ')
@@ -211,7 +213,7 @@ try {
     /* 初回 */
   }
   lines.push(
-    `${new Date().toISOString()} ${event.hook_event_name} ${event.session_id ?? '-'} :: ${speech.slice(0, 120)}`,
+    `${new Date().toISOString()} ${event.hook_event_name} ${event.session_id ?? '-'} len=${speech.length}${isSpeaking() ? ' [前の読み上げを中断]' : ''} :: ${speech.slice(0, 120)}`,
   );
   writeFileSync(logFile, `${lines.slice(-200).join('\n')}\n`);
 } catch {

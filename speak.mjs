@@ -161,15 +161,20 @@ if (event.hook_event_name === 'Stop') {
     const raw = lastAssistantText(event.transcript_path);
     if (raw) {
       // 同じ応答は二度読まない。セッション再開時は前セッションの履歴が新しいログに
-      // 引き継がれるため、放っておくと前回の最後のまとめをもう一度読んでしまう
-      const lastFile = join(tmpdir(), 'claude-code-voice.last');
+      // 引き継がれるため、放っておくと前回の最後のまとめをもう一度読んでしまう。
+      // 記録は直近50件の履歴で持つ(複数セッション並行時に「最後の1件」だと
+      // 互いに上書きし合って再読み上げ防止が破れるため)
+      const histFile = join(tmpdir(), 'claude-code-voice.history');
       const hash = createHash('sha256').update(raw).digest('hex');
+      let hist = [];
       try {
-        if (readFileSync(lastFile, 'utf8') === hash) process.exit(0);
+        hist = readFileSync(histFile, 'utf8').split('\n').filter(Boolean);
       } catch {
         /* 初回は記録なし */
       }
-      writeFileSync(lastFile, hash);
+      if (hist.includes(hash)) process.exit(0);
+      hist.push(hash);
+      writeFileSync(histFile, `${hist.slice(-50).join('\n')}\n`);
       speech = firstSentences(toSpeakable(raw), MAX_CHARS);
     } else {
       speech = '応答が完了しました';
